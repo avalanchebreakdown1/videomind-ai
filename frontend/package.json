@@ -1,0 +1,16 @@
+{
+  "name": "videomind-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node_modules/node/bin/node node_modules/next/dist/bin/next dev --webpack --hostname 127.0.0.1",
+    "build": "node_modules/node/bin/node node_modules/next/dist/bin/next build --webpack",
+    "start": "node_modules/node/bin/node node_modules/next/dist/bin/next start --hostname 127.0.0.1",
+    "typecheck": "node_modules/node/bin/node node_modules/typescript/bin/tsc --noEmit",
+    "test": "node_modules/node/bin/node --experimental-strip-types --test tests/*.test.ts",
+    "test:e2e": "node_modules/node/bin/node node_modules/@playwright/test/cli.js test"
+  },
+  "dependencies": { "next": "16.4.2", "react": "19.3.1", "react-dom": "19.3.1" },
+  "devDependencies": { "node": "24.22.0", "typescript": "5.9.3", "@types/node": "24.10.0", "@types/react": "19.2.14", "@types/react-dom": "19.2.3", "@playwright/test": "1.64.1" }
+}

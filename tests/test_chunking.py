@@ -1,0 +1,51 @@
+import math
+
+import pytest
+
+from videomind.config import Settings
+from videomind.services.chunking_service import plan_chunks
+
+
+@pytest.mark.parametrize("duration,count", [(0.1, 1), (300, 1), (301, 2), (600, 2), (18001, 61)])
+def test_plan_complete_coverage(duration, count):
+    chunks = plan_chunks(duration, Settings())
+    assert len(chunks) == count
+    assert chunks[0].core_start == 0
+    assert chunks[-1].core_end == duration
+    for i, chunk in enumerate(chunks):
+        assert chunk.index == i
+        assert 0 <= chunk.audio_start <= chunk.core_start < chunk.core_end <= chunk.audio_end <= duration
+        assert chunk.audio_end - chunk.audio_start <= 304
+        if i:
+            assert chunks[i - 1].core_end == chunk.core_start
+            # Context is clipped at the end of short final cores.
+            expected_overlap = min(2, duration - chunk.core_start) + 2
+            assert chunks[i - 1].audio_end - chunk.audio_start == expected_overlap
+
+
+@pytest.mark.parametrize("duration", [0, -1, math.nan, math.inf])
+def test_invalid_duration(duration):
+    with pytest.raises(ValueError):
+        plan_chunks(duration, Settings())
+
+
+@pytest.mark.parametrize("options", [
+    {"chunk_seconds": 0}, {"chunk_seconds": 601}, {"chunk_seconds": math.inf},
+    {"overlap_seconds": -1}, {"overlap_seconds": 150}, {"overlap_seconds": math.nan},
+    {"asr_retries": 6}, {"cpu_threads": 0}, {"process_timeout": 0},
+])
+def test_settings_reject_invalid_values(options):
+    with pytest.raises(ValueError):
+        Settings(**options)
+
+
+def test_environment_configuration(monkeypatch):
+    monkeypatch.setenv("VIDEOMIND_MODEL", "tiny.en")
+    monkeypatch.setenv("VIDEOMIND_CHUNK_SECONDS", "120")
+    monkeypatch.setenv("VIDEOMIND_LOCAL_FILES_ONLY", "true")
+    settings = Settings.from_env()
+    assert settings.model == "tiny.en" and settings.chunk_seconds == 120
+    assert settings.local_files_only
+    monkeypatch.setenv("VIDEOMIND_LOCAL_FILES_ONLY", "maybe")
+    with pytest.raises(ValueError):
+        Settings.from_env()
