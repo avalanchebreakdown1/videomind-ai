@@ -23,7 +23,7 @@ M3 is off by default. Writing never implicitly enables it. The old extraction/ou
 
 ## Next reliability and quality work
 
-1. Define a small human-reviewed transcript and document benchmark covering technical terms, numbers, examples, qualifications and omissions.
+1. Use the [offline benchmark tooling](docs/BENCHMARK.md) to establish a small human-reviewed transcript and document baseline covering technical terms, numbers, examples, qualifications and omissions. Synthetic evaluator tests are implemented; real lecture review and acceptance thresholds remain pending.
 2. Add explicit model-readiness diagnostics; the existing health route only checks worker/configuration availability.
 3. Design resumable processing, hard inference timeouts and recovery without mutating old evidence.
 4. Add storage/retention quotas and better resource admission for long jobs.

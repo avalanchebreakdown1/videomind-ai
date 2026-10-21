@@ -11,6 +11,9 @@ from .services.ingestion_service import run_youtube_pipeline
 
 def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "benchmark":
+        from .benchmark_cli import main as benchmark_main
+        return benchmark_main(argv[1:])
     if argv and argv[0] == "document":
         from .writing_cli import main as document_main
         return document_main(argv[1:])

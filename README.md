@@ -56,6 +56,10 @@ Build before standalone type checking on a fresh clone: Next.js generates route 
 
 The [GitHub Actions workflow](.github/workflows/checks.yml) defines backend tests, frontend tests, a production build/type check and Chromium browser integration on pushes and pull requests. Tests use controlled ASR/writer responses, with no YouTube or model downloads. Dependency and Chromium installation require network access. Green checks establish software behavior, not factual accuracy.
 
+An [offline benchmark command](docs/BENCHMARK.md) evaluates transcript samples and
+records separate human notes assessments. Bundled fixtures are synthetic; real
+lecture accuracy acceptance remains open.
+
 ## Repository layout
 
 ```text

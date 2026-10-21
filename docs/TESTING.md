@@ -12,6 +12,14 @@ env -u PYTHONPATH .venv/bin/python -m pytest
 
 Pytest excludes `real_asr` by default. Tests use controlled ASR/writer responses, generated WAVs, real FFmpeg and local HTTP/SQLite where appropriate. They do not download models, call Ollama or access live YouTube. Local sockets/subprocesses must work; in a restricted coding sandbox request normal execution rather than weakening application transport checks. Dependencies require network access to install, not to run the default suite.
 
+## Offline accuracy benchmark
+
+See [benchmark setup and controlled baseline](BENCHMARK.md) for the
+`videomind benchmark` command, strict WER, critical phrase checks and hash-bound
+human notes annotations. Its synthetic fixtures run in the default backend suite
+without models or network access. A real human-reviewed lecture baseline and
+accuracy thresholds remain pending.
+
 ## Frontend and browser integration
 
 From `frontend` after `npm ci`:

@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "sample_id": "synthetic-technical-001",
+  "reference_status": "synthetic",
+  "source_description": "Original artificial text for evaluator tests; no lecture or audio was reviewed.",
+  "permission_confirmed": true,
+  "transcript": "The signal is .5 mV, not .5 MV. The area is 2 cm². For example, x = −2. Across the chunk boundary, retain this qualification: only for positive inputs.",
+  "critical_checks": [
+    {"id": "units", "category": "term", "phrase": "mV"},
+    {"id": "decimal", "category": "number", "phrase": ".5 mV"},
+    {"id": "negation", "category": "negation", "phrase": "not .5 MV"},
+    {"id": "superscript", "category": "number", "phrase": "2 cm²"},
+    {"id": "example", "category": "example", "phrase": "x = −2"},
+    {"id": "boundary", "category": "boundary", "phrase": "only for positive inputs"}
+  ],
+  "concepts": [
+    {"id": "unit-distinction", "description": "Retain .5 mV versus .5 MV and the negation."},
+    {"id": "area", "description": "Retain the area 2 cm²."},
+    {"id": "worked-example", "description": "Retain x = −2 as an example."},
+    {"id": "qualification", "description": "Retain the positive-input qualification across a boundary."}
+  ]
+}
