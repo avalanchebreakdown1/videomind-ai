@@ -12,10 +12,11 @@ Failures retain the raw transcript and diagnostics; no final Word is served. Eve
 
 Implemented local API. Launch `python -m uvicorn videomind.api:create_app --factory --host 127.0.0.1 --port 8000`. Interactive forms and OpenAPI are at `/docs` and `/openapi.json`. Run one server process.
 
-SQLite jobs store a UUID, state, stage, progress, cancellation flag, internal source payload, sanitized metadata, safe error and timestamps. Files live under `storage/jobs/<UUID>/`; upload names never become paths. Public responses exclude internal payloads and paths. Artifact routes serve fixed raw/reviewed transcript filenames and verification reports. A dedicated artifact table and Next.js proxy are not implemented yet; M3 source-integrity hashes live in the review report.
+SQLite jobs store a UUID, state, stage, progress, cancellation flag, internal source payload, sanitized metadata, safe error and timestamps. Files live under `storage/jobs/<UUID>/`; upload names never become paths. Public responses exclude internal payloads and paths. Artifact routes serve fixed filenames. The implemented Next.js proxy is described below; a dedicated artifact table remains unimplemented. Source-integrity hashes are retained with processing reports.
 
 | Endpoint | Request | Response |
 |---|---|---|
+| GET /api/v1/health | — | 200 worker availability, source limits and defaults; does not check/load models |
 | POST /api/v1/jobs | multipart: required authorized=true, exactly one youtube_url or file; verify=false/true and write_document=false/true (both default false; writing does not enable verification) | 202 job resource and Location |
 | GET /api/v1/jobs/{job_id} | — | 200 state, stage, progress, warnings, safe source metadata and available artifacts |
 | GET /api/v1/jobs/{job_id}/transcript | kind=raw/verified, format=json/txt, download=false/true | 200 preview JSON or attachment; verified requires verify=true on submission |
@@ -40,7 +41,7 @@ Source rules: require confirmation of authorization. Accept only HTTP(S) YouTube
 
 Defaults: 256 MiB source/request-file limit plus 64 KiB multipart overhead, four-hour media duration, 900-second total download deadline, 20-second socket timeout, five queued/running jobs. Whole bodies are bounded before multipart parsing even without Content-Length; file bytes are checked again while copying. Upload content is probed in the worker and known media-container demuxers are enforced. Input Content-Type/extension alone is never trusted. Completed storage is retained until manually managed; no total disk quota or automatic retention yet.
 
-Only loopback access is supported. Host headers must be localhost/127.0.0.1/[::1]; browser Origin, when present, must be `http://localhost:8000` or `http://127.0.0.1:8000`. CLI clients without an Origin are allowed. No authentication, multi-user authorization or public deployment support is provided. The technical document workflow is implemented; a dedicated frontend and selectable writing styles remain planned.
+Only loopback access is supported. Backend Host headers must be localhost/127.0.0.1/[::1]; browser Origin, when present, must be `http://localhost:8000` or `http://127.0.0.1:8000`. CLI clients without an Origin are allowed. The Next.js frontend uses the bounded same-origin proxy below. No authentication, multi-user authorization or public deployment support is provided. Selectable writing styles remain planned; the interface uses technical educational notes.
 
 ## Local Next.js integration
 

@@ -1,6 +1,14 @@
-# M1–M3 issue tracking and advancement gate
+# Known issues and historical milestone findings
 
-User instruction: address existing-milestone issues before advancing. No M4/M5 or UI implementation was started during the fixes below. This tracker distinguishes reproduced defects from accuracy limits and later-stage features; passing tests is not a blanket correctness claim.
+## Current workflow status
+
+The Next.js frontend, FastAPI integration, direct Ollama rewrite and DOCX/TXT export are implemented. Audio verification is opt-in and off by default. Current setup/tests are in [README](README.md) and [the testing guide](docs/TESTING.md).
+
+Remaining priorities are human-reference ASR/content accuracy evaluation, resumable jobs/hard inference timeouts, storage/resource quotas and broader authorized-source testing. Direct writing can omit or distort technical details; selected reference-backed Python repairs do not establish general factual correctness. Software tests and completed browser runs do not close content-quality acceptance.
+
+## Historical M1–M3 tracking
+
+The entries below retain earlier milestone findings. Later authorization added writing and UI without implicitly closing those accuracy/reliability limits. User instruction during that pass: address existing-milestone issues before advancing. No M4/M5 or UI implementation was started during the fixes below. This tracker distinguishes reproduced defects from accuracy limits and later-stage features; passing tests is not a blanket correctness claim.
 
 ## Reproduced defects fixed in 0.3.1
 
@@ -29,9 +37,11 @@ These are not all closed by D1/D2. The user has now explicitly authorized M4/M5 
 - Scientific truth checking is separate from faithfully recognizing speech. Current preparation outputs explicitly set `fact_checked: false`; M4 must implement grounding/attribution/factual review.
 - Diagrams, equations shown without speech and demonstrations are not recovered by audio-only processing. Visual extraction would be additional scope, not an implicit ability of M1–M3.
 - The service remains loopback/single-user only. Authentication, multi-user isolation and public hosting are not implemented.
-- Local Ollama writing and DOCX are now implemented; external scientific fact verification, human review tooling and the dedicated frontend remain future work. See MILESTONE_4_5_REPORT.md.
+- Local Ollama writing, DOCX and the Next.js frontend are implemented. General external scientific fact verification and dedicated human adjudication tooling remain future work. See FRONTEND_INTEGRATION_REPORT.md and DIRECT_REWRITE_ACCEPTANCE.md.
 
-## M4/M5 limits to track
+## Legacy M4/M5 quality findings
+
+The extraction/outline/review details below describe `--pipeline legacy`. Default writing is now direct rewriting and does not run these review/content-gate passes. Historical failures are retained as evidence, not claims about current pipeline stages.
 
 **Content-quality acceptance failed on the user's lecture draft.** See `DOCUMENT_QUALITY_REVIEW.md`. A working pipeline and 317 passing integration/regression tests did not establish a reliable educational document. The new reading-copy gate withholds flagged text, and a separately edited official-reference-backed Python guide is supplied; general automatic factual grounding and recognition correction remain open.
 
