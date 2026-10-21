@@ -47,10 +47,20 @@ def required_constructs(source, topic):
     return ["pass"] if re.search(r"(?:keyword|word|statement).{0,80}\bpass\b", source, re.I) else []
 
 
-def rewrite_problems(result, required, python_lesson):
+def rewrite_problems(result, required, python_lesson, creator=None):
     text = "\n".join(s.heading + "\n" + s.explanation + "\n" + "\n".join(s.code_examples) for s in result.sections)
     problems = [f"Explain the taught {word!r} keyword; it was omitted." for word in required
                 if not re.search(r"\b" + re.escape(word) + r"\b", text, re.I)]
+    narrators = [r"the\s+(?:speaker|presenter|instructor|teacher|author|video)"]
+    if creator:
+        narrators.extend(re.escape(name) for name in creator.split() if len(name) >= 3)
+    narration = (r"\b(?:" + "|".join(narrators) + r")\s+"
+                 r"(?:discusses|explains|mentions|demonstrates|emphasizes|highlights|"
+                 r"uses|claims|notes|says|shows|talks|describes|introduces|concludes|observed|reports)\b")
+    if any(re.search(narration, section.explanation, re.I) for section in result.sections):
+        problems.append("Replace presenter narration with direct subject explanations. "
+                        "Describe personal results as a reported comparison or demonstration, "
+                        "preserving numbers and limitations; do not generalize them into facts.")
     if python_lesson:
         for section in result.sections:
             prose = section.explanation

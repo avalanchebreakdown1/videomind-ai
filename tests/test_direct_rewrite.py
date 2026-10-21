@@ -43,11 +43,30 @@ class DirectModel:
                                        "reason": "The surrounding lesson explicitly discusses Python programming."}]
         if self.mode == "empty":
             result["sections"] = []
+        if self.mode == "narration" or self.mode == "narration-retry" and len(self.requests) == 1:
+            result["sections"][0]["explanation"] = "The speaker discusses optical measurements."
         if self.mode == "invalid" or self.mode == "retry" and len(self.requests) == 1:
             result = {"wrong_schema": True}
         if self.mode == "truncated":
             return {"done": True, "done_reason": "length", "message": {"content": json.dumps(result)}}
         return {"done": True, "done_reason": "stop", "message": {"content": json.dumps(result)}}
+
+
+def test_narration_retries_before_export_and_persistent_narration_withholds_document(source_dir):
+    model = DirectModel("narration-retry")
+    result = generate_document(source_dir, source_dir.parent / "narration-retry", WritingSettings(), model)
+    assert len(model.requests) == 2
+    assert "The speaker discusses" not in result.with_suffix(".txt").read_text()
+    audit = json.loads(result.with_name("rewrite_audit.json").read_text())
+    assert audit["validation_attempts"][0]["problems"]
+    assert not audit["validation_attempts"][1]["problems"]
+    before = {p.name: sha256(p) for p in source_dir.iterdir()}
+    output = source_dir.parent / "narration-blocked"
+    with pytest.raises(ValueError, match="Rewrite did not resolve content regressions"):
+        generate_document(source_dir, output, WritingSettings(), DirectModel("narration"))
+    assert not (output / "document.docx").exists()
+    assert len(list((output / "model_calls").glob("*.response.json"))) == 2
+    assert {p.name: sha256(p) for p in source_dir.iterdir()} == before
 
 
 def test_direct_context_rewrite_and_clean_word_preserve_source(source_dir):

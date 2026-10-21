@@ -38,9 +38,9 @@ env -u PYTHONPATH .venv/bin/python -m videomind document \
   --source-url 'https://www.youtube.com/watch?v=VIDEO_ID_HERE'
 ```
 
-For the local-file example use `--source-dir runs/local-01`. One installed Ollama model rewrites bounded transcript chunks, retains technical explanations/examples, removes chatter and uses context for editorial completions. It does not independently verify facts. Raw transcripts remain unchanged; normal notes have no inline uncertainty markers.
+For the local-file example use `--source-dir runs/local-01`. One installed Ollama model rewrites bounded transcript chunks, retains technical explanations/examples, removes chatter and uses context for editorial completions. The writing instructions request a direct summary of the subject, with creator credit in attribution rather than presenter narration; reported demonstrations must retain their scope and limitations. It does not independently verify facts. Raw transcripts remain unchanged; normal notes have no inline uncertainty markers.
 
-Outputs include DOCX/TXT/JSON, source chunks/hashes, model calls, `rewrite_audit.json`, `quality.json` and a manifest. Failed integrity/schema checks withhold final documents but retain diagnostics. Every source character is submitted; complete topic retention requires human evaluation.
+Outputs include DOCX/TXT/JSON, source chunks/hashes, model calls, `rewrite_audit.json`, `quality.json` and a manifest. Common presenter-narration patterns trigger a bounded retry; persistent detections withhold the export and retain responses and audit evidence. This narrow wording check does not detect every stylistic or factual problem. Failed integrity/schema checks also withhold final documents but retain diagnostics. Every source character is submitted; complete topic retention requires human evaluation.
 
 The document CLI exits **2** for an unreviewed generated draft, **1** for failure and **130** for interruption. Successful raw transcription exits **0**. Document exit 2 is not a failed download.
 
