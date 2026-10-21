@@ -42,6 +42,8 @@ For the local-file example use `--source-dir runs/local-01`. One installed Ollam
 
 Outputs include DOCX/TXT/JSON, source chunks/hashes, model calls, `rewrite_audit.json`, `quality.json` and a manifest. Common presenter-narration patterns trigger a bounded retry; persistent detections withhold the export and retain responses and audit evidence. This narrow wording check does not detect every stylistic or factual problem. Failed integrity/schema checks also withhold final documents but retain diagnostics. Every source character is submitted; complete topic retention requires human evaluation.
 
+If export fails after producing reading files, those files are retained in a fresh `withheld-exports-*` directory with hashes in the failed manifest. They are not delivered as normal documents. See [unattended development boundaries](UNATTENDED_WORK.md).
+
 The document CLI exits **2** for an unreviewed generated draft, **1** for failure and **130** for interruption. Successful raw transcription exits **0**. Document exit 2 is not a failed download.
 
 ## Optional audio verification

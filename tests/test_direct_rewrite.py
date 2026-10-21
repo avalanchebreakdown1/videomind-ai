@@ -240,6 +240,76 @@ def test_direct_detects_source_changes_and_withdraws_final_export(source_dir):
     assert not json.loads((output / "integrity.json").read_text())["source_artifacts_unchanged"]
 
 
+def test_export_failure_retains_every_generated_export_without_changing_source(source_dir, monkeypatch):
+    from videomind.services import direct_rewrite_service
+    before = {p.name: sha256(p) for p in source_dir.iterdir()}
+    output = source_dir.parent / "failed-export"
+    captured = {}
+
+    def fail_export(path, document, attribution):
+        path.write_bytes(b"controlled partial Word export")
+        for name in ("document.docx", "document.txt", "reading_document.json"):
+            captured[name] = (output / name).read_bytes()
+        # A pre-existing retained artifact must never be replaced.
+        previous = output / "withheld-exports-previous"
+        previous.mkdir()
+        (previous / "document.docx").write_bytes(b"previous retained artifact")
+        raise OSError("Controlled export failure")
+
+    monkeypatch.setattr(direct_rewrite_service, "export_rewrite_docx", fail_export)
+    with pytest.raises(OSError, match="Controlled export failure"):
+        generate_document(source_dir, output, WritingSettings(), DirectModel())
+    manifest = json.loads((output / "manifest.json").read_text())
+    assert manifest["state"] == "failed"
+    assert len(manifest["withheld_exports"]) == 3
+    for item in manifest["withheld_exports"]:
+        retained = output / item["retained_path"]
+        assert retained.read_bytes() == captured[item["original_path"]]
+        assert sha256(retained) == item["sha256"]
+        assert not (output / item["original_path"]).exists()
+    assert (output / "withheld-exports-previous" / "document.docx").read_bytes() == b"previous retained artifact"
+    assert {p.name: sha256(p) for p in source_dir.iterdir()} == before
+
+
+def test_existing_output_is_rejected_before_model_calls_without_overwriting(source_dir):
+    output = source_dir.parent / "existing-output"
+    output.mkdir()
+    artifact = output / "document.docx"
+    artifact.write_bytes(b"previous document")
+    model = DirectModel()
+    with pytest.raises(ValueError, match="existing runs are immutable"):
+        generate_document(source_dir, output, WritingSettings(), model)
+    assert artifact.read_bytes() == b"previous document"
+    assert not model.requests
+
+
+def test_withholding_permission_error_preserves_files_and_original_failure(source_dir, monkeypatch):
+    from pathlib import Path
+    from videomind.services import direct_rewrite_service
+    output = source_dir.parent / "blocked-withholding"
+    original_rename = Path.rename
+
+    def fail_export(path, document, attribution):
+        path.write_bytes(b"partial document retained in place")
+        raise OSError("Original export error")
+
+    def deny_export_move(path, destination):
+        if path.parent == output:
+            raise PermissionError("Controlled move denied")
+        return original_rename(path, destination)
+
+    monkeypatch.setattr(direct_rewrite_service, "export_rewrite_docx", fail_export)
+    monkeypatch.setattr(Path, "rename", deny_export_move)
+    with pytest.raises(OSError, match="Original export error"):
+        generate_document(source_dir, output, WritingSettings(), DirectModel())
+    manifest = json.loads((output / "manifest.json").read_text())
+    assert manifest["state"] == "failed"
+    assert manifest["error"] == "Original export error"
+    assert len(manifest["withheld_exports"]) == 3
+    assert all(item["retention_error"] == "Controlled move denied" for item in manifest["withheld_exports"])
+    assert (output / "document.docx").read_bytes() == b"partial document retained in place"
+
+
 @pytest.mark.parametrize("mode", ["good", "unavailable"])
 def test_default_api_direct_rewrite_without_audio_verification(tmp_path, audio_file, monkeypatch, mode):
     def fail(*args, **kwargs):

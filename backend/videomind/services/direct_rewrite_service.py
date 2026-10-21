@@ -403,8 +403,31 @@ def rewrite_document(source, output, settings, client=None, *, title=None, url=N
     except BaseException as exc:
         manifest.update(state="failed", error_type=type(exc).__name__, error=str(exc), source_artifacts_unchanged=unchanged())
         write_json(output / "manifest.json", manifest)
+        # Failed exports must not be served as reading documents, but their bytes
+        # remain evidence. Reserve a fresh directory before moving anything;
+        # never replace a previous failure's retained files.
+        retained, withheld = [], None
+        for name in ("document.docx", "document.txt", "reading_document.json"):
+            artifact = output / name
+            if artifact.exists():
+                location = artifact
+                item = {"original_path": name, "reason": "document_generation_failed"}
+                try:
+                    if withheld is None:
+                        import tempfile
+                        withheld = Path(tempfile.mkdtemp(prefix="withheld-exports-", dir=output))
+                    destination = withheld / name
+                    artifact.rename(destination)
+                    location = destination
+                    item["sha256"] = sha256(location)
+                except OSError as retention_error:
+                    # Permission/disk errors must not trigger destructive
+                    # fallback cleanup or obscure the original failure.
+                    item["retention_error"] = str(retention_error)
+                item["retained_path"] = str(location.relative_to(output))
+                retained.append(item)
+        manifest["withheld_exports"] = retained
+        write_json(output / "manifest.json", manifest)
         write_json(output / "rewrite_audit.json", audit)
         write_json(output / "integrity.json", {"source_artifacts_unchanged": manifest["source_artifacts_unchanged"], "sha256": hashes})
-        for name in ("document.docx", "document.txt", "reading_document.json"):
-            (output / name).unlink(missing_ok=True)
         raise
