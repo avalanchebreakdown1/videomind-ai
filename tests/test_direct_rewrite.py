@@ -13,7 +13,8 @@ from videomind.api import create_app
 from videomind.config import Settings
 from videomind.ingestion_config import IngestionSettings
 from videomind.services.direct_rewrite_service import transcript_chunks, unsupported_code_tokens, normalize_blocks, RewriteBlock, clean_reading_document
-from videomind.services.ollama_service import OllamaError
+from videomind.services.ollama_service import OllamaError, ModelSession
+from videomind.services.direct_rewrite_service import DirectRewrite
 from videomind.services.verification_service import sha256
 from videomind.services.writing_pipeline import generate_document
 from videomind.writing_config import WritingSettings
@@ -38,12 +39,13 @@ class DirectModel:
             "explanation": "The detector receives .5 mW over an area of 2 cm² under the specified conditions.",
             "code_examples": ['if True:\n    print("Hello friends")']}], "corrections": []}
         if self.mode == "repair":
-            result["sections"][0]["explanation"] = "Python is a high-level programming language."
+            result["sections"][0]["explanation"] = "Python is a high-level programming language. The detector receives .5 mW over 2 cm²."
             result["corrections"] = [{"original": "Paitan", "replacement": "Python",
                                        "reason": "The surrounding lesson explicitly discusses Python programming."}]
         if self.mode == "empty":
             result["sections"] = []
-        if self.mode == "narration" or self.mode == "narration-retry" and len(self.requests) == 1:
+        if (self.mode == "narration" or self.mode == "narration-retry" and len(self.requests) == 1
+                or self.mode == "narration-retry-twice" and len(self.requests) <= 2):
             result["sections"][0]["explanation"] = "The speaker discusses optical measurements."
         if self.mode == "invalid" or self.mode == "retry" and len(self.requests) == 1:
             result = {"wrong_schema": True}
@@ -52,10 +54,24 @@ class DirectModel:
         return {"done": True, "done_reason": "stop", "message": {"content": json.dumps(result)}}
 
 
+def test_retry_conversation_is_bounded_before_inference(tmp_path):
+    model = DirectModel()
+    session = ModelSession(model, WritingSettings(), tmp_path / "calls")
+    with pytest.raises(OllamaError, match="bounded context budget"):
+        session.ask("rewrite-retry", "Rewrite the source.", {"CURRENT_TRANSCRIPT": "Source."},
+                    DirectRewrite, previous_response="x" * 18000, retry_feedback="Repair.")
+    assert not model.requests
+
+
 def test_narration_retries_before_export_and_persistent_narration_withholds_document(source_dir):
     model = DirectModel("narration-retry")
     result = generate_document(source_dir, source_dir.parent / "narration-retry", WritingSettings(), model)
     assert len(model.requests) == 2
+    retry = model.requests[1]["messages"]
+    assert [m["role"] for m in retry] == ["system", "user", "assistant", "user"]
+    assert "The speaker discusses" in retry[2]["content"]
+    assert "NOT transcript content" in retry[3]["content"]
+    assert "Rewrite these exact phrases" not in retry[1]["content"]
     assert "The speaker discusses" not in result.with_suffix(".txt").read_text()
     audit = json.loads(result.with_name("rewrite_audit.json").read_text())
     assert audit["validation_attempts"][0]["problems"]
@@ -65,8 +81,18 @@ def test_narration_retries_before_export_and_persistent_narration_withholds_docu
     with pytest.raises(ValueError, match="Rewrite did not resolve content regressions"):
         generate_document(source_dir, output, WritingSettings(), DirectModel("narration"))
     assert not (output / "document.docx").exists()
-    assert len(list((output / "model_calls").glob("*.response.json"))) == 2
+    assert len(list((output / "model_calls").glob("*.response.json"))) == 3
     assert {p.name: sha256(p) for p in source_dir.iterdir()} == before
+
+
+def test_final_recovery_starts_fresh_without_replaying_the_bad_candidate(source_dir):
+    model = DirectModel("narration-retry-twice")
+    result = generate_document(source_dir, source_dir.parent / "fresh-recovery", WritingSettings(), model)
+    assert result.exists() and len(model.requests) == 3
+    final_messages = model.requests[-1]["messages"]
+    assert [message["role"] for message in final_messages] == ["system", "user", "user"]
+    assert "The speaker discusses" not in final_messages[1]["content"]
+    assert "The speaker discusses" in final_messages[2]["content"]
 
 
 def test_direct_context_rewrite_and_clean_word_preserve_source(source_dir):
@@ -191,6 +217,19 @@ def test_reading_cleanup_removes_residual_audience_and_curriculum_boilerplate():
     assert len(exclusions) == 3
 
 
+def test_reading_cleanup_audits_real_course_ad_without_losing_a_discount_calculation():
+    ad = "AI Pro offers more than 14 courses. Other offerings have fewer resources. The current discount is 20% off."
+    calculation = "Calculate the discount by multiplying the original price by 20%."
+    data = {"sections": [{"heading": "Offers", "blocks": [
+        {"kind": "paragraph", "text": ad, "source_chunk_ids": ["T0"]},
+        {"kind": "paragraph", "text": calculation, "source_chunk_ids": ["T1"]}]}]}
+    original = deepcopy(data)
+    reading, excluded = clean_reading_document(data)
+    assert [b["text"] for b in reading["sections"][0]["blocks"]] == [calculation]
+    assert excluded == [{"heading": "Offers", "text": ad, "source_chunk_ids": ["T0"], "reason": "commercial_offer"}]
+    assert data == original
+
+
 @pytest.mark.parametrize("text", ["short", "α₂ .5 mW. " * 400, "longword " * 200])
 def test_chunks_cover_every_character_and_bound_context(text):
     chunks = list(transcript_chunks(text, 500))
@@ -198,6 +237,55 @@ def test_chunks_cover_every_character_and_bound_context(text):
     assert all(len(c["text"]) <= 500 and len(c["context_before"]) <= 400 for c in chunks)
     for c in chunks:
         assert text[c["source_char_start"]:c["source_char_end"]] == c["text"]
+
+
+def test_long_document_keeps_last_chunk_and_audits_exact_source_coverage(source_dir):
+    raw = source_dir / "verified_transcript.json"
+    source = json.loads(raw.read_text())
+    source["text"] = " ".join(
+        f"Topic {i}: variables refer to objects, and functions return values. The calibrated detector receives .5 mW over 2 cm²."
+        for i in range(24)) + " Final boundary example: immutable objects retain their value."
+    source["words"] = [{"text": source["text"], "start": 0, "end": 20, "probability": .9,
+                        "verification_status": "not_checked", "audio_reviewed": False}]
+    raw.write_text(json.dumps(source))
+    (source_dir / "document_source.json").unlink()
+    before = {p.name: sha256(p) for p in source_dir.iterdir()}
+
+    class EchoChunks(DirectModel):
+        def chat(self, request):
+            self.requests.append(deepcopy(request))
+            data = json.loads(request["messages"][1]["content"].split("\nUNTRUSTED_DATA_JSON:\n")[1])
+            value = {"sections": [{"heading": "Technical examples", "explanation": data["CURRENT_TRANSCRIPT"], "code_examples": []}], "corrections": []}
+            return {"done": True, "message": {"content": json.dumps(value)}}
+
+    model = EchoChunks()
+    path = generate_document(source_dir, source_dir.parent / "complete-long", replace(WritingSettings(), direct_chunk_chars=500), model)
+    coverage = json.loads(path.with_name("coverage.json").read_text())
+    assert len(model.requests) >= 6
+    assert coverage["all_source_submitted"] and coverage["submitted_characters"] == len(source["text"])
+    assert not coverage["semantic_completeness_verified"]
+    text = "\n".join(p.text for p in Document(path).paragraphs)
+    for i in range(24):
+        assert f"Topic {i}:" in text
+    assert "Final boundary example: immutable objects retain their value." in text
+    assert {p.name: sha256(p) for p in source_dir.iterdir()} == before
+
+
+def test_missing_numeric_evidence_is_retried_and_never_exported(source_dir):
+    class DroppingNumbers(DirectModel):
+        def chat(self, request):
+            response = super().chat(request)
+            value = json.loads(response["message"]["content"])
+            value["sections"][0]["explanation"] = "The detector measures optical power."
+            response["message"]["content"] = json.dumps(value)
+            return response
+    model = DroppingNumbers()
+    output = source_dir.parent / "missing-measurement"
+    with pytest.raises(ValueError, match="source numerical examples"):
+        generate_document(source_dir, output, WritingSettings(), model)
+    assert len(model.requests) == 3
+    assert not (output / "document.docx").exists()
+    assert len(list((output / "model_calls").glob("*.response.json"))) == 3
 
 
 @pytest.mark.parametrize("mode,error", [("empty", ValueError), ("invalid", ValueError),

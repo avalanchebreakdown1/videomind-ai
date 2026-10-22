@@ -36,6 +36,36 @@ Build first on a fresh clone: the committed `next-env.d.ts` imports Next-generat
 
 Browser tests start real Next.js/FastAPI servers on **3100/8001**, with controlled ASR/writer/downloader dependencies in `tests/ui_fixture_server.py`. They exercise the proxy, queue, FFmpeg, previews, downloads, recovery, cancellation and errors without external inference. Those ports must be free; fixtures are separate from production ports 3000/8000 and production storage. Test data lives in `/tmp/videomind-ui-integration` unless `VIDEOMIND_UI_TEST_STORAGE` is set. Never use that fixture server to process real user media.
 
+## Optional real production browser run
+
+`frontend/playwright.real.config.ts` connects to separately started production servers on loopback ports 3000/8000. It never starts the fixture server. Opt in from `frontend` with existing authorized sources:
+
+```bash
+env PLAYWRIGHT_BROWSERS_PATH='/absolute/path/to/cached/browsers' \
+  VIDEOMIND_REAL_VIDEO_URL='https://www.youtube.com/watch?v=AUTHORIZED_ID' \
+  VIDEOMIND_REAL_AUDIO_PATH='/absolute/path/to/authorized-long-audio.mp3' \
+  npm run test:e2e -- --config playwright.real.config.ts
+```
+
+Each source is skipped when its variable is absent. Start production with a fresh `VIDEOMIND_STORAGE_DIR` to preserve existing jobs. These tests perform real ingestion, ASR and local-model writing, can take up to 90 minutes per source, and check actual browser downloads after completion. They install nothing. Inspect the resulting transcript, Word document and audit separately; even a passing run does not prove factual accuracy. Default tests and CI do not run this configuration.
+
+For a bounded 24-hour soak, first restart production services with the current code and a fresh storage directory,
+then run from the repository root with an existing authorized local recording:
+
+```bash
+PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/ms-playwright" \
+  .venv/bin/python scripts/soak_local.py --audio /absolute/path/lecture.wav \
+  --output runs/real-soak-new --hours 24
+```
+
+The runner repeats the real audio browser workflow at ten-minute intervals, serially,
+and retains logs, downloads, reports and server jobs. It stops at the first failed,
+skipped or timed-out cycle, terminates its browser process group, and rejects source
+or application-code changes during the run. `report.json` records actual elapsed time,
+source/code hashes, cycle results and free disk space. Short diagnostic runs can use
+`--hours 0.25`; they do not constitute an all-day soak. Model/settings provenance remains
+in each server job. Passing a soak does not establish educational factual accuracy.
+
 ## Optional real-ASR tests
 
 Explicitly prepare speech and checkpoints while online, from the root:

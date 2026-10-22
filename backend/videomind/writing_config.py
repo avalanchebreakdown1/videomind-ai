@@ -13,12 +13,12 @@ class WritingSettings:
     timeout_seconds: float = 180
     run_timeout_seconds: float = 3600
     chunk_chars: int = 3500
-    direct_chunk_chars: int = 6000
+    direct_chunk_chars: int = 3500
     max_chunks: int = 80
     max_calls: int = 512
     max_concepts: int = 160
     num_ctx: int = 8192
-    num_predict: int = 2200
+    num_predict: int = 4096
 
     def __post_init__(self):
         url = urlsplit(self.endpoint)

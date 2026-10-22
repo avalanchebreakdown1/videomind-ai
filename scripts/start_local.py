@@ -22,7 +22,7 @@ def main():
     environment.pop("PYTHONPATH", None)
     environment.setdefault("VIDEOMIND_MODEL", "small")
     environment.setdefault("VIDEOMIND_LOCAL_FILES_ONLY", "true")
-    environment.setdefault("VIDEOMIND_WRITE_MODEL", "qwen2.5-coder:7b")
+    environment.setdefault("VIDEOMIND_WRITE_MODEL", "llama3.1:8b")
     environment.setdefault("NEXT_TELEMETRY_DISABLED", "1")
     environment.setdefault("VIDEOMIND_API_URL", "http://127.0.0.1:8000")
     processes = []

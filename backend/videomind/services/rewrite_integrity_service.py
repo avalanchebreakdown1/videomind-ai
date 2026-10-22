@@ -54,13 +54,18 @@ def rewrite_problems(result, required, python_lesson, creator=None):
     narrators = [r"the\s+(?:speaker|presenter|instructor|teacher|author|video)"]
     if creator:
         narrators.extend(re.escape(name) for name in creator.split() if len(name) >= 3)
-    narration = (r"\b(?:" + "|".join(narrators) + r")\s+"
+    narration = (r"\b(?:" + "|".join(narrators) + r")(?:,\s*[^,\n.]{1,80},)?\s+(?:(?:has|had)\s+)?"
                  r"(?:discusses|explains|mentions|demonstrates|emphasizes|highlights|"
-                 r"uses|claims|notes|says|shows|talks|describes|introduces|concludes|observed|reports)\b")
-    if any(re.search(narration, section.explanation, re.I) for section in result.sections):
+                 r"uses|used|claims|notes|says|states|shows|talks|describes|introduces|concludes|observed|reports|built|builds|created|tested|compares|compared)\b")
+    phrases = [match.group() for section in result.sections for match in re.finditer(narration, section.explanation, re.I)]
+    if phrases:
         problems.append("Replace presenter narration with direct subject explanations. "
                         "Describe personal results as a reported comparison or demonstration, "
-                        "preserving numbers and limitations; do not generalize them into facts.")
+                        "preserving numbers and limitations; do not generalize them into facts. "
+                        "Rewrite these exact phrases: " + "; ".join(dict.fromkeys(phrases)))
+    for section in result.sections:
+        if re.fullmatch(r"(?:generic )?(?:introduction|conclusion|summary|corrections|corrected terms|editorial repairs)", section.heading.strip(), re.I):
+            problems.append("Remove the generic/editorial section '" + section.heading + "'; retain any substantive technical details under subject-specific headings.")
     if python_lesson:
         for section in result.sections:
             prose = section.explanation

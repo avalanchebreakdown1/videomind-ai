@@ -78,7 +78,7 @@ ollama serve
 If Ollama is already running as a service, use that instance. In the project terminal:
 
 ```bash
-ollama pull qwen2.5-coder:7b
+ollama pull llama3.1:8b
 ollama list
 curl --fail http://127.0.0.1:11434/api/tags
 ```
@@ -110,10 +110,10 @@ The backend reads environment variables, **not** a root `.env` automatically. In
 ```bash
 export VIDEOMIND_MODEL=small
 export VIDEOMIND_LOCAL_FILES_ONLY=true
-export VIDEOMIND_WRITE_MODEL=qwen2.5-coder:7b
+export VIDEOMIND_WRITE_MODEL=llama3.1:8b
 ```
 
-Do not blindly source `.env.example` as launcher settings: its general CLI defaults include `MODEL=base` and online first-use downloads. The launcher defaults to `small` and offline loading unless overridden. Next.js can read private `frontend/.env.local`; server-only `VIDEOMIND_API_URL` must remain loopback. Keep both servers bound to loopback.
+The CLI, API and launcher default to the cached `small` ASR checkpoint with offline loading. Missing checkpoints fail rather than downloading automatically. Inspect `.env.example` before exporting overrides; optional verification requires a distinct, explicitly prepared checkpoint. Next.js can read private `frontend/.env.local`; server-only `VIDEOMIND_API_URL` must remain loopback. Keep both servers bound to loopback.
 
 | Symptom | Check |
 |---|---|

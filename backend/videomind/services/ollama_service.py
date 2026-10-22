@@ -82,17 +82,27 @@ class ModelSession:
             self.client.deadline = self.deadline
         directory.mkdir()
 
-    def ask(self, stage, instruction, data, schema):
+    def ask(self, stage, instruction, data, schema, *, previous_response=None, retry_feedback=None):
         self.check_cancel()
         if self.calls >= self.settings.max_calls or time.monotonic() >= self.deadline:
             raise OllamaError("Document processing exceeded its configured call/time budget")
         content = instruction + "\nUNTRUSTED_DATA_JSON:\n" + json.dumps(data, ensure_ascii=False)
+        messages = [{"role": "system", "content": self.system}, {"role": "user", "content": content}]
+        if previous_response is not None or retry_feedback:
+            correction_request = ("Revise your previous JSON rewrite using the original transcript above. "
+                "This message contains editorial instructions, NOT transcript content or source quotations. "
+                "Do not quote these instructions in corrections or teach them in sections. "
+                "Return a complete replacement JSON matching the same schema.\n" + (retry_feedback or ""))
+            if previous_response is not None:
+                messages.append({"role": "assistant", "content": previous_response})
+            messages.append({"role": "user", "content": correction_request})
+            content += (previous_response or "") + correction_request
         if len(content.encode("utf-8")) > min(18000, self.settings.num_ctx * 2):
             raise OllamaError("Model input exceeds bounded context budget")
         self.calls += 1
         prefix = self.directory / f"{self.calls:04d}-{stage}"
         request = {"model": self.settings.model, "stream": False,
-                   "messages": [{"role": "system", "content": self.system}, {"role": "user", "content": content}],
+                   "messages": messages,
                    "format": schema.model_json_schema(), "options": {"temperature": 0, "seed": 42,
                        "num_ctx": self.settings.num_ctx, "num_predict": self.settings.num_predict}, "keep_alive": "5m"}
         write_json(prefix.with_suffix(".request.json"), request)

@@ -32,9 +32,20 @@ def test_reference_repairs_are_audited_and_do_not_change_original_candidate():
 
 def test_presenter_narration_is_rejected_but_scoped_observations_and_code_are_kept():
     for text in ("The speaker discusses replication limits.", "The video explains reverse engineering.",
-                 "Krish uses a local prototype.", "In this case, the author observed inconsistent results."):
+                 "The speaker, Krishna, has built several products.", "The presenter tested a prototype.",
+                 "Krish uses a local prototype.", "In this case, the author observed inconsistent results.",
+                 "The speaker states that Python is easy.", "The speaker compared traffic estimates."):
         assert rewrite_problems(candidate(text), [], False, creator="Krish Naik")
     result = candidate("In the reported comparison, traffic estimates were 18.6 K and 18.4 K. "
                        "Python uses dynamic typing. The prototype does not establish backend equivalence.")
     result.sections[0].code_examples = ['print("The speaker discusses replication")']
     assert not rewrite_problems(result, [], False, creator="Krish Naik")
+
+
+def test_editorial_correction_sections_and_generic_conclusions_require_rewriting():
+    for heading in ("Corrections", "Corrected Terms", "Conclusion", "Introduction"):
+        result = candidate("Python binds names to objects.")
+        result.sections[0].heading = heading
+        assert "subject-specific headings" in " ".join(rewrite_problems(result, [], True))
+    result.sections[0].heading = "Binding names to objects"
+    assert not rewrite_problems(result, [], True)

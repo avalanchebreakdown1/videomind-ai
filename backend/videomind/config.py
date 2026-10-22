@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Settings:
-    model: str = "base"
+    model: str = "small"
     device: str = "cpu"
     compute_type: str = "int8"
     language: str | None = None
@@ -14,7 +14,7 @@ class Settings:
     asr_retries: int = 1
     cpu_threads: int = 4
     model_dir: str = ".cache/models"
-    local_files_only: bool = False
+    local_files_only: bool = True
     process_timeout: float = 3600
 
     def __post_init__(self):
@@ -35,11 +35,11 @@ class Settings:
         def get(name, default):
             return os.environ.get(f"VIDEOMIND_{name}", default)
 
-        offline = get("LOCAL_FILES_ONLY", "false").lower()
+        offline = get("LOCAL_FILES_ONLY", "true").lower()
         if offline not in ("true", "false"):
             raise ValueError("VIDEOMIND_LOCAL_FILES_ONLY must be true or false")
         return cls(
-            model=get("MODEL", "base"), device=get("DEVICE", "cpu"),
+            model=get("MODEL", "small"), device=get("DEVICE", "cpu"),
             compute_type=get("COMPUTE_TYPE", "int8"), language=get("LANGUAGE", "") or None,
             chunk_seconds=float(get("CHUNK_SECONDS", "300")),
             overlap_seconds=float(get("OVERLAP_SECONDS", "2")),
