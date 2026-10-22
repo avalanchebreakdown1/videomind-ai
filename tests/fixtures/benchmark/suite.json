@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "suite_id": "synthetic-diagnostic-only",
+  "policy": {
+    "max_wer": 0.10,
+    "min_critical_recall": 1.0,
+    "max_missing": 0,
+    "max_distorted": 0,
+    "max_unsupported_additions": 0,
+    "min_reviewed_sources": 3,
+    "required_slices": ["technical", "noisy", "long-lecture-boundary"]
+  },
+  "samples": [
+    {
+      "reference": "reference.json",
+      "transcript": "transcript.txt",
+      "notes": "notes.txt",
+      "slices": ["technical"]
+    }
+  ]
+}

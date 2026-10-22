@@ -1,5 +1,9 @@
 # Offline accuracy benchmark
 
+For multi-sample policy gates, coverage requirements and a production-evidence
+checklist, see [Evaluations](EVALUATIONS.md). The single-sample command below keeps
+its existing exit-code and `not_assessed` acceptance semantics.
+
 The first integration batch adds evaluation tooling, not a claim of accurate lecture
 transcription or educational content. It reads existing UTF-8 text files; it never
 runs ASR, Ollama, M3 verification or network requests. The existing CI backend test
